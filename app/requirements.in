@@ -1,0 +1,7 @@
+fastapi>=0.115.0
+uvicorn
+PyYAML
+requests>=2.33.0
+pydantic
+argon2-cffi
+itsdangerous
