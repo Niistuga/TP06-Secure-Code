@@ -36,7 +36,11 @@ UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger("minishop")
 
-app = FastAPI(title="MiniShop", debug=True)
+IS_PRODUCTION = os.getenv("ENVIRONMENT") == "production"
+
+app = FastAPI(title="MiniShop", debug=False,
+              docs_url=None if IS_PRODUCTION else "/docs",
+              openapi_url=None if IS_PRODUCTION else "/openapi.json" )
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY,https_only=True,same_site="lax")
 
 ROLE_PERMISSIONS = {
@@ -272,4 +276,4 @@ def boom():
 
 if __name__ == "__main__":
     init_db()
-    uvicorn.run("app:app", host="0.0.0.0", port=5000, reload=True)
+    uvicorn.run("app:app", host="127.0.0.1", port=5000)
