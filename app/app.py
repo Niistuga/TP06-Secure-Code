@@ -245,6 +245,16 @@ def delete_user(user_id: int, request: Request):
     conn.commit()
     return {"deleted": user_id}
 
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+
+    response.headers["Content-Security-Policy"] = "default-src 'self'"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Strict-Transport-Security"] = ("max-age=31536000; includeSubDomains")
+    response.headers["X-Frame-Options"] = "DENY"
+
+    return response
 
 @app.get("/boom")
 def boom():
