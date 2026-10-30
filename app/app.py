@@ -45,28 +45,6 @@ ROLE_PERMISSIONS = {
 }
 
 
-def require(permission: str):
-    def permission_checker(request: Request):
-        user_id = request.session.get("user_id")
-
-        if not user_id:
-            return JSONResponse({"error": "Login required"},status_code=401)
-
-        user = db().execute("SELECT is_admin FROM users WHERE id = ?",(user_id,)).fetchone()
-
-        if not user:
-            return JSONResponse({"error": "Login required"},status_code=401)
-
-        role = "admin" if user["is_admin"] else "user"
-
-        if permission not in ROLE_PERMISSIONS.get(role, set()):
-            return JSONResponse({"error": "Forbidden"},status_code=403)
-
-        return user
-
-    return permission_checker
-
-
 def db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -262,8 +240,6 @@ def delete_user(user_id: int, request: Request):
     if "user:delete" not in ROLE_PERMISSIONS.get(role, set()):
         return JSONResponse({"error": "forbidden"}, status_code=403)
 
-    if "user_id" not in request.session:
-        return JSONResponse({"error": "login required"}, status_code=401)
     conn = db()
     conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
     conn.commit()
