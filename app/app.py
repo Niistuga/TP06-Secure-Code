@@ -14,6 +14,8 @@ import subprocess
 import traceback
 
 import requests
+import ast
+
 import uvicorn
 import yaml
 import ipaddress
@@ -124,7 +126,13 @@ def get_file(name: str):
 
 @app.post("/calc")
 def calc(data: dict = Body(...)):
-    return {"result": str(eval(data["expr"]))}
+    try:
+        return {"result": str(ast.literal_eval(data["expr"]))}
+    except (ValueError, SyntaxError):
+        return JSONResponse(
+            {"error": "Invalid expression"},
+            status_code=400
+        )
 
 
 @app.post("/import-yaml")
