@@ -12,16 +12,19 @@ import random
 import sqlite3
 import subprocess
 import traceback
-
-import requests
-import ast
-
 import uvicorn
 import yaml
 import ipaddress
+
+import requests
+import ast
+import json
+
 from fastapi import Body, FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from starlette.middleware.sessions import SessionMiddleware
+
+from pydantic import BaseModel, ValidationError
 
 SECRET_KEY = "super-secret-key-123"
 DB_PATH = os.environ.get("DB_PATH", "shop.db")
@@ -137,14 +140,23 @@ def calc(data: dict = Body(...)):
 
 @app.post("/import-yaml")
 async def import_yaml(request: Request):
-    cfg = yaml.load(await request.body(), Loader=yaml.Loader)
-    return {"keys": list(cfg.keys()) if isinstance(cfg, dict) else str(type(cfg))}
+    try :
+        cfg = yaml.safe_load(await request.body())
+        return {"keys": list(cfg.keys()) if isinstance(cfg, dict) else str(type(cfg))}
+    except yaml.YAMLError:
+        return JSONResponse({"error": "Invalid YAML"},status_code=400)
 
+class Profile(BaseModel):
+    username: str
+    email: str
 
 @app.post("/import-profile")
 async def import_profile(request: Request):
-    profile = pickle.loads(base64.b64decode(await request.body()))
-    return {"profile": str(profile)}
+    try:
+        profile = Profile.model_validate(json.loads(await request.body()))
+        return {"profile": str(profile)}
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JSONResponse({"error": "Invalid profile"},status_code=400)
 
 
 @app.get("/fetch")
