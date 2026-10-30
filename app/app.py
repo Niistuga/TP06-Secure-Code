@@ -3,10 +3,8 @@
 Ne jamais déployer ce code tel quel. Votre mission : le rendre conforme.
 Documentation interactive : http://localhost:5000/docs
 """
-import hashlib
 import logging
 import os
-import random
 import sqlite3
 import subprocess
 import traceback
@@ -40,6 +38,33 @@ log = logging.getLogger("minishop")
 
 app = FastAPI(title="MiniShop", debug=True)
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY,https_only=True,same_site="lax")
+
+ROLE_PERMISSIONS = {
+    "admin": {"user:read", "user:delete"},
+    "user": set()
+}
+
+
+def require(permission: str):
+    def permission_checker(request: Request):
+        user_id = request.session.get("user_id")
+
+        if not user_id:
+            return JSONResponse({"error": "Login required"},status_code=401)
+
+        user = db().execute("SELECT is_admin FROM users WHERE id = ?",(user_id,)).fetchone()
+
+        if not user:
+            return JSONResponse({"error": "Login required"},status_code=401)
+
+        role = "admin" if user["is_admin"] else "user"
+
+        if permission not in ROLE_PERMISSIONS.get(role, set()):
+            return JSONResponse({"error": "Forbidden"},status_code=403)
+
+        return user
+
+    return permission_checker
 
 
 def db():
@@ -208,12 +233,35 @@ def invoice(invoice_id: int, request: Request):
 def admin_users(request: Request):
     if "user_id" not in request.session:
         return JSONResponse({"error": "login required"}, status_code=401)
+
+    user = db().execute("SELECT is_admin FROM users WHERE id = ?",(request.session["user_id"],)).fetchone()
+    if not user:
+        return JSONResponse({"error": "login required"}, status_code=401)
+
+    role = "admin" if user["is_admin"] else "user"
+
+    if "user:read" not in ROLE_PERMISSIONS.get(role, set()):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    
     rows = db().execute("SELECT id, username, is_admin FROM users").fetchall()
     return [dict(r) for r in rows]
 
 
 @app.delete("/users/{user_id}")
 def delete_user(user_id: int, request: Request):
+    if "user_id" not in request.session:
+        return JSONResponse({"error": "login required"}, status_code=401)
+
+    user = db().execute("SELECT is_admin FROM users WHERE id = ?",(request.session["user_id"],)).fetchone()
+
+    if not user:
+       return JSONResponse({"error": "login required"}, status_code=401)
+
+    role = "admin" if user["is_admin"] else "user"
+
+    if "user:delete" not in ROLE_PERMISSIONS.get(role, set()):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+
     if "user_id" not in request.session:
         return JSONResponse({"error": "login required"}, status_code=401)
     conn = db()
