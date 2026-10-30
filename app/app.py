@@ -17,6 +17,7 @@ import ipaddress
 import requests
 import ast
 import json
+import html
 
 from fastapi import Body, FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
@@ -118,7 +119,7 @@ def ping(host: str = "127.0.0.1"):
 
 @app.get("/hello")
 def hello(name: str = ""):
-    return HTMLResponse(f"<h1>Bonjour {name}</h1>")
+    return HTMLResponse(f"<h1>Bonjour {html.escape(name)}</h1>")
 
 
 @app.get("/files/{name:path}")
