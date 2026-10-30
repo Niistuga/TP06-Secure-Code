@@ -111,7 +111,7 @@ def login(request: Request, data: dict = Body(...)):
 @app.get("/search")
 def search(q: str = ""):
     sql = f"SELECT id, name, price FROM products WHERE name LIKE ?"
-    return [dict(r) for r in db().execute(sql,("%{q}%",)).fetchall()]
+    return [dict(r) for r in db().execute(sql,(f"%{q}%",)).fetchall()]
 
 
 @app.get("/ping")
@@ -198,7 +198,7 @@ def fetch(url: str):
 def invoice(invoice_id: int, request: Request):
     if "user_id" not in request.session:
         return JSONResponse({"error": "login required"}, status_code=401)
-    row = db().execute("SELECT * FROM invoices WHERE id = ?", (invoice_id,)).fetchone()
+    row = db().execute("SELECT * FROM invoices WHERE id = ? AND owner_id = ?", (invoice_id,request.session["user_id"])).fetchone()
     if not row:
         return JSONResponse({"error": "not found"}, status_code=404)
     return dict(row)
