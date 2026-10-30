@@ -256,6 +256,15 @@ async def security_headers(request: Request, call_next):
 
     return response
 
+@app.exception_handler(Exception)
+async def handle_internal_error(request: Request, exc: Exception):
+    log.exception("Internal server error")
+
+    return JSONResponse(
+        {"error": "Internal server error"},
+        status_code=500
+    )
+
 @app.get("/boom")
 def boom():
     return 1 / 0
