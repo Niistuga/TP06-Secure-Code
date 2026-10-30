@@ -54,3 +54,16 @@ jobs:
           format: table
           exit-code: "1"
           severity: CRITICAL,HIGH
+
+      - name: Generate CycloneDX SBOM
+        uses: anchore/sbom-action@d94f46e13c6c62f59525ac9a1e147a99dc0b9bf5 # v0.17.0
+        with:
+          image: minishop:ci
+          format: cyclonedx-json
+          output-file: sbom.cyclonedx.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: minishop-cyclonedx-sbom
+          path: sbom.cyclonedx.json
