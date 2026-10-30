@@ -25,6 +25,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from pydantic import BaseModel
 from pathlib import Path
+from urllib.parse import urlparse
 
 SECRET_KEY = "super-secret-key-123"
 DB_PATH = os.environ.get("DB_PATH", "shop.db")
@@ -167,9 +168,21 @@ async def import_profile(request: Request):
 
 @app.get("/fetch")
 def fetch(url: str):
-    r = requests.get(url, verify=False)
-    return PlainTextResponse(r.text[:500])
+    parsed_url = urlparse(url)
+    allowed_hosts = []
 
+    if parsed_url.scheme != "https":
+        return JSONResponse({"error": "Only HTTPS URLs are allowed"},status_code=400)
+
+    if parsed_url.hostname not in allowed_hosts:
+        return JSONResponse({"error": "Host not allowed"},status_code=400)
+    
+    try:
+        response = requests.get(url,timeout=5,verify=True,allow_redirects=False)
+        return PlainTextResponse(response.text[:500])
+
+    except requests.RequestException:
+        return JSONResponse({"error": "Request failed"},status_code=400)
 
 @app.get("/invoices/{invoice_id}")
 def invoice(invoice_id: int, request: Request):
