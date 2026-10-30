@@ -3,11 +3,9 @@
 Ne jamais déployer ce code tel quel. Votre mission : le rendre conforme.
 Documentation interactive : http://localhost:5000/docs
 """
-import base64
 import hashlib
 import logging
 import os
-import pickle
 import random
 import sqlite3
 import subprocess
@@ -24,7 +22,8 @@ from fastapi import Body, FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from starlette.middleware.sessions import SessionMiddleware
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
+from pathlib import Path
 
 SECRET_KEY = "super-secret-key-123"
 DB_PATH = os.environ.get("DB_PATH", "shop.db")
@@ -124,7 +123,13 @@ def hello(name: str = ""):
 
 @app.get("/files/{name:path}")
 def get_file(name: str):
-    return FileResponse(os.path.join(UPLOAD_DIR, name))
+    upload_dir = Path(UPLOAD_DIR).resolve()
+    file_path = (upload_dir / name).resolve()
+
+    if not file_path.is_relative_to(upload_dir):
+        return JSONResponse({"error": "Access denied"},status_code=403)
+    
+    return FileResponse(file_path)
 
 
 @app.post("/calc")
