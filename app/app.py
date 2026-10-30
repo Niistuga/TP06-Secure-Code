@@ -16,6 +16,7 @@ import traceback
 import requests
 import uvicorn
 import yaml
+import ipaddress
 from fastapi import Body, FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from starlette.middleware.sessions import SessionMiddleware
@@ -99,7 +100,15 @@ def search(q: str = ""):
 
 @app.get("/ping")
 def ping(host: str = "127.0.0.1"):
-    out = subprocess.run(f"ping -c 1 {host}", shell=True, capture_output=True, text=True)
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return JSONResponse({"error": "Invalid IP address"},status_code=400)
+
+    try:
+        out = subprocess.run(["ping", "-c", "1", host],capture_output=True,text=True,timeout=5)
+    except subprocess.TimeoutExpired:
+            return JSONResponse({"error": "Ping timeout"},status_code=408)
     return PlainTextResponse(out.stdout + out.stderr)
 
 
