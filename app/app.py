@@ -26,6 +26,9 @@ from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel
 from pathlib import Path
 from urllib.parse import urlparse
+from argon2 import PasswordHasher
+
+password_hasher = PasswordHasher()
 
 SECRET_KEY = "super-secret-key-123"
 DB_PATH = os.environ.get("DB_PATH", "shop.db")
@@ -45,8 +48,15 @@ def db():
     return conn
 
 
-def md5(value):
-    return hashlib.md5(value.encode()).hexdigest()
+def hash_password(password):
+    return password_hasher.hash(password)
+
+
+def verify_password(password, hashed_password):
+    try:
+        return password_hasher.verify(hashed_password, password)
+    except Exception:
+        return False
 
 
 def init_db():
@@ -64,9 +74,9 @@ def init_db():
         """
     )
     conn.execute("INSERT INTO users (username, password, is_admin) VALUES (?, ?, 1)",
-                 ("admin", md5("admin123")))
-    conn.execute("INSERT INTO users (username, password) VALUES (?, ?)", ("alice", md5("alice123")))
-    conn.execute("INSERT INTO users (username, password) VALUES (?, ?)", ("bob", md5("bob123")))
+                 ("admin", hash_password("admin123")))
+    conn.execute("INSERT INTO users (username, password) VALUES (?, ?)", ("alice", hash_password("alice123")))
+    conn.execute("INSERT INTO users (username, password) VALUES (?, ?)", ("bob", hash_password("bob123")))
     conn.executemany("INSERT INTO products (name, price) VALUES (?, ?)",
                      [("apple", 1.2), ("banana", 0.8), ("cherry", 3.5)])
     conn.executemany("INSERT INTO invoices (owner_id, label, amount) VALUES (?, ?, ?)",
@@ -88,11 +98,11 @@ def health():
 @app.post("/login")
 def login(request: Request, data: dict = Body(...)):
     username, password = data["username"], data["password"]
-    log.info(f"login attempt user={username} password={password}")
-    sql = f"SELECT * FROM users WHERE username=? AND password=?"
-    row = db().execute(sql, (username, md5(password))).fetchone()
-    if not row:
-        return JSONResponse({"error": "bad credentials"}, status_code=401)
+    log.info(f"login attempt user={username}")
+    sql = f"SELECT * FROM users WHERE username=?"
+    row = db().execute(sql, (username,)).fetchone()
+    if not row or not verify_password(password, row["password"]):
+        return JSONResponse({"error": "Invalid credentials"}, status_code=401)
     request.session["user_id"] = row["id"]
     request.session["token"] = str(random.randint(0, 10**6))
     return {"status": "logged in", "user": row["username"]}
