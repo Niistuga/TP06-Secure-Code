@@ -1,4 +1,4 @@
-fastapi>=0.115.0
+fastapi>=0.163.1
 uvicorn
 PyYAML
 requests>=2.33.0
